@@ -165,6 +165,97 @@
       .remove-image-btn:hover {
         background: #dc2626;
       }
+
+      /* Стили для упорядоченного списка позиций ворот */
+      .gate-order-list {
+        margin-top: 8px;
+        padding: 8px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        min-height: 40px;
+      }
+
+      .gate-order-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 10px;
+        margin: 4px 0;
+        background: #fff;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        cursor: move;
+        transition: all 0.2s ease;
+        user-select: none;
+      }
+
+      .gate-order-item:hover {
+        background: #f1f5f9;
+        border-color: #0ea5e9;
+      }
+
+      .gate-order-item.dragging {
+        opacity: 0.5;
+        transform: rotate(5deg);
+      }
+
+      .gate-order-item .drag-handle {
+        color: #6b7280;
+        font-size: 14px;
+        cursor: grab;
+      }
+
+      .gate-order-item .drag-handle:active {
+        cursor: grabbing;
+      }
+
+      .gate-order-item .gate-number {
+        background: #0ea5e9;
+        color: white;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .gate-order-item .gate-label {
+        flex: 1;
+        font-weight: 500;
+      }
+
+      .gate-order-item .remove-gate {
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .gate-order-item .remove-gate:hover {
+        background: #dc2626;
+      }
+
+      .gate-order-placeholder {
+        border: 2px dashed #cbd5e1;
+        background: #f7fafc;
+        border-radius: 6px;
+        padding: 8px;
+        text-align: center;
+        color: #64748b;
+        font-size: 14px;
+        margin: 4px 0;
+      }
     </style>
     <style>
       html,body{margin:0;padding:0}
@@ -435,6 +526,13 @@
 							</div>
 						</div>
 					</div>
+
+					<div class="form-group">
+						<label>Порядок позиций ворот (перетащите для изменения порядка):</label>
+						<div class="gate-order-list" id="gate-order-${index}">
+							<div class="gate-order-placeholder">Выберите позиции ворот выше</div>
+						</div>
+					</div>
 				`;
 				return formDiv;
 			}
@@ -455,6 +553,102 @@
 					cam_num: camNum,
 					gate_pos: gatePos
 				};
+
+				// Обновляем упорядоченный список
+				updateGateOrderList(index);
+			}
+
+			// Функция для обновления упорядоченного списка позиций ворот
+			function updateGateOrderList(index) {
+				const orderList = document.getElementById(`gate-order-${index}`);
+				const gatePos = imageData[index]?.gate_pos || [];
+				
+				if (gatePos.length === 0) {
+					orderList.innerHTML = '<div class="gate-order-placeholder">Выберите позиции ворот выше</div>';
+					return;
+				}
+
+				// Создаем элементы для каждой выбранной позиции
+				orderList.innerHTML = '';
+				gatePos.forEach((gateNum, orderIndex) => {
+					const orderItem = document.createElement('div');
+					orderItem.className = 'gate-order-item';
+					orderItem.draggable = true;
+					orderItem.dataset.gateNum = gateNum;
+					orderItem.dataset.orderIndex = orderIndex;
+					
+					orderItem.innerHTML = `
+						<span class="drag-handle">⋮⋮</span>
+						<div class="gate-number">${orderIndex + 1}</div>
+						<div class="gate-label">Позиция ${gateNum}</div>
+						<button class="remove-gate" onclick="removeGateFromOrder(${index}, ${gateNum})">×</button>
+					`;
+					
+					// Добавляем обработчики drag and drop
+					orderItem.addEventListener('dragstart', handleDragStart);
+					orderItem.addEventListener('dragover', handleDragOver);
+					orderItem.addEventListener('drop', handleDrop);
+					orderItem.addEventListener('dragend', handleDragEnd);
+					
+					orderList.appendChild(orderItem);
+				});
+			}
+
+			// Обработчики drag and drop
+			let draggedElement = null;
+
+			function handleDragStart(e) {
+				draggedElement = e.target;
+				e.target.classList.add('dragging');
+				e.dataTransfer.effectAllowed = 'move';
+			}
+
+			function handleDragOver(e) {
+				e.preventDefault();
+				e.dataTransfer.dropEffect = 'move';
+			}
+
+			function handleDrop(e) {
+				e.preventDefault();
+				
+				if (draggedElement && draggedElement !== e.target) {
+					const targetElement = e.target.closest('.gate-order-item');
+					if (targetElement) {
+						const imageIndex = parseInt(targetElement.closest('[id^="gate-order-"]').id.split('-')[2]);
+						const draggedGateNum = parseInt(draggedElement.dataset.gateNum);
+						const targetGateNum = parseInt(targetElement.dataset.gateNum);
+						
+						// Меняем местами элементы в массиве
+						const gatePos = imageData[imageIndex].gate_pos;
+						const draggedIndex = gatePos.indexOf(draggedGateNum);
+						const targetIndex = gatePos.indexOf(targetGateNum);
+						
+						if (draggedIndex !== -1 && targetIndex !== -1) {
+							[gatePos[draggedIndex], gatePos[targetIndex]] = [gatePos[targetIndex], gatePos[draggedIndex]];
+							updateGateOrderList(imageIndex);
+						}
+					}
+				}
+			}
+
+			function handleDragEnd(e) {
+				e.target.classList.remove('dragging');
+				draggedElement = null;
+			}
+
+			// Функция для удаления позиции из упорядоченного списка
+			function removeGateFromOrder(imageIndex, gateNum) {
+				const gatePos = imageData[imageIndex].gate_pos;
+				const index = gatePos.indexOf(gateNum);
+				if (index !== -1) {
+					gatePos.splice(index, 1);
+					// Снимаем чекбокс
+					const checkbox = document.getElementById(`gate_${gateNum}_${imageIndex}`);
+					if (checkbox) {
+						checkbox.checked = false;
+					}
+					updateImageData(imageIndex);
+				}
 			}
 
 			// Функция для удаления изображения
@@ -523,6 +717,11 @@
 					const result = await response.json();
 					console.log('Ответ сервера:', result);
 
+					// Отображаем количество людей
+					if ('people' in result) {
+						displayPeopleCount(result.people);
+					}
+
 					if ('free_entrance' in result) {
 						const url = new URL(window.location);
 						url.searchParams.set('entrance_suggestion', result.free_entrance);
@@ -537,6 +736,96 @@
 					sendBtn.textContent = 'Отправить фотографии';
 				}
 			});
+
+			// Функция для отображения количества людей
+			function displayPeopleCount(peopleCount) {
+				// Создаем или обновляем блок с количеством людей
+				let peopleBlock = document.getElementById('people-count-block');
+				
+				if (!peopleBlock) {
+					peopleBlock = document.createElement('div');
+					peopleBlock.id = 'people-count-block';
+					peopleBlock.style.cssText = `
+						margin-top: 15px;
+						padding: 16px;
+						background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+						border-radius: 12px;
+						color: white;
+						text-align: center;
+						box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+						animation: slideIn 0.5s ease-out;
+					`;
+					
+					// Добавляем CSS анимацию
+					const style = document.createElement('style');
+					style.textContent = `
+						@keyframes slideIn {
+							from {
+								opacity: 0;
+								transform: translateY(20px);
+							}
+							to {
+								opacity: 1;
+								transform: translateY(0);
+							}
+						}
+					`;
+					document.head.appendChild(style);
+					
+					// Вставляем блок после секции загрузки
+					document.getElementById('uploader-section').insertAdjacentElement('afterend', peopleBlock);
+				}
+
+				// Определяем уровень загруженности и соответствующий текст
+				let level, levelText, icon;
+				if (peopleCount === 0) {
+					level = 'empty';
+					levelText = 'Пусто';
+					icon = '🟢';
+				} else if (peopleCount <= 10) {
+					level = 'low';
+					levelText = 'Мало людей';
+					icon = '🟡';
+				} else if (peopleCount <= 25) {
+					level = 'medium';
+					levelText = 'Умеренно';
+					icon = '🟠';
+				} else {
+					level = 'high';
+					levelText = 'Много людей';
+					icon = '🔴';
+				}
+
+				// Обновляем содержимое блока
+				peopleBlock.innerHTML = `
+					<div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px;">
+						<span style="font-size: 20px;">${icon}</span>
+						<span style="font-size: 18px; font-weight: 600;">${levelText}</span>
+					</div>
+					<div style="font-size: 24px; font-weight: 700; margin-bottom: 4px;">
+						${peopleCount} ${peopleCount === 1 ? 'человек' : peopleCount < 5 ? 'человека' : 'человек'}
+					</div>
+					<div style="font-size: 14px; opacity: 0.9;">
+						Обнаружено на изображениях
+					</div>
+				`;
+
+				// Добавляем эффект пульсации для привлечения внимания
+				peopleBlock.style.animation = 'slideIn 0.5s ease-out, pulse 2s ease-in-out 0.5s';
+				
+				// Добавляем CSS для пульсации
+				if (!document.getElementById('pulse-animation')) {
+					const pulseStyle = document.createElement('style');
+					pulseStyle.id = 'pulse-animation';
+					pulseStyle.textContent = `
+						@keyframes pulse {
+							0%, 100% { transform: scale(1); }
+							50% { transform: scale(1.02); }
+						}
+					`;
+					document.head.appendChild(pulseStyle);
+				}
+			}
 		</script>
 <!-- ======= Конец блока загрузки ======= -->
 
