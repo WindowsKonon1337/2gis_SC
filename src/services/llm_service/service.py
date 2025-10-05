@@ -13,6 +13,12 @@ import uvicorn
 llm_service = FastAPI(
     prefix='/api/v1'
 )
+
+MAX_RETRIES = 3
+
+from pydantic import BaseModel, Field
+from typing import Union, List
+
 client = AsyncOpenAI(
     api_key=os.getenv('OPENAI_API_KEY'),
     base_url=os.getenv('OPENAI_BASE_URL'),
@@ -21,34 +27,51 @@ client = AsyncOpenAI(
 
 @llm_service.post('/api/v1/proc_image')
 async def proc_image(req: ProcRequest):
-    try:
-        llm_output = await client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": main_prompt['user']},
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{req.image_bytes}"
-                            }
-                        },
-                    ],
-                }],
-        )
-        result = llm_output.choices[0].message.content
+    for _ in range(MAX_RETRIES):
+        try:
+            llm_output = await client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": main_prompt['system']},
+                        ]
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": main_prompt['user'].format(gatenum=req.gate_pos)
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{req.image_bytes}"
+                                }
+                            },
+                        ],
+                    }],
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "bus_analysis",
+                            "schema": BusAnalysisResponse.model_json_schema()
+                        }                    
+                    }
+            )
+            result = llm_output.choices[0].message.content
 
-        result.replace('`', '').replace('json', '').strip()
 
-        response = req.model_dump()
-        del response['image_bytes']
-        response['proc_data'] = json.loads(result)
-
-        return json.dumps(response)
-    except Exception as e:
-        print(e)
-        raise HTTPException(500, 'something not good : (')
+            print(result)
+            response = req.model_dump()
+            del response['image_bytes']
+            response['proc_data'] = json.loads(result)
+            return json.dumps(response)
+        except Exception as e:
+            print(e)
+    raise HTTPException(500, 'something not good : (')
 
 
 if __name__ == '__main__':
