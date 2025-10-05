@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  # LLM Service - порт 1337
+  llm-service:
+    build:
+      context: ./src/services/llm_service
+      dockerfile: Dockerfile
+    container_name: llm-service
+    ports:
+      - "${LLM_SERVICE_PORT:-1337}:1337"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-wAE07IvRJmwoTNlImRlMRvfV8hSQkhlK}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://api.proxyapi.ru/openai/v1}
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:1337/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Crowd Analysis Service - порт 1338
+  crowd-analysis-service:
+    build:
+      context: ./src/services/crowd_analysis_service
+      dockerfile: Dockerfile
+    container_name: crowd-analysis-service
+    ports:
+      - "${CROWD_ANALYSIS_SERVICE_PORT:-1338}:1338"
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:1338/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  app-network:
+    driver: bridge

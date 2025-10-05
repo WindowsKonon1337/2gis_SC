@@ -5,6 +5,7 @@ from fastapi import FastAPI, HTTPException
 from models import *
 from prompts import *
 
+import os
 
 import uvicorn
 
@@ -13,8 +14,8 @@ llm_service = FastAPI(
     prefix='/api/v1'
 )
 client = AsyncOpenAI(
-    api_key="sk-wAE07IvRJmwoTNlImRlMRvfV8hSQkhlK",
-    base_url="https://api.proxyapi.ru/openai/v1",
+    api_key=os.getenv('OPENAI_API_KEY'),
+    base_url=os.getenv('OPENAI_BASE_URL'),
 )
 
 
@@ -30,7 +31,7 @@ async def proc_image(req: ProcRequest):
                         {
                             "type": "image_url",
                             "image_url": {
-                                "url": f"data:image/jpeg;base64,{req.image}"
+                                "url": f"data:image/jpeg;base64,{req.image_bytes}"
                             }
                         },
                     ],
@@ -41,7 +42,7 @@ async def proc_image(req: ProcRequest):
         result.replace('`', '').replace('json', '').strip()
 
         response = req.model_dump()
-        del response['image']
+        del response['image_bytes']
         response['proc_data'] = json.loads(result)
 
         return json.dumps(response)
