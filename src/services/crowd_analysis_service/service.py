@@ -67,9 +67,25 @@ async def crowd_analysys(req: ProcRequest):
     seats = np.mean([json.loads(x)['proc_data']['free_seats'] for x in frontal_processed]).astype(float)
 
     people = np.mean([json.loads(x)['proc_data']['people_num'] for x in frontal_processed]).astype(float) + 1.5 * np.mean([json.loads(x)['proc_data']['people_num'] for x in gate_processed]).astype(float) if gate_processed else np.mean([json.loads(x)['proc_data']['people_num'] for x in frontal_processed]).astype(float)
+    
+    if len(gate):
+        frontal_free = [json.loads(x)['proc_data']['free_entrance'] for x in frontal_processed]
+        gate_free = [json.loads(x)['proc_data']['free_entrance'] for x in frontal_processed]
 
-    free_entr = Counter([json.loads(x)['proc_data']['free_entrance'] for x in frontal_processed]).most_common(1)[0][0]
+        summurized_stat = list(filter(lambda x: x != 0, frontal_free + gate_free))
+    else:
+        frontal_free = [json.loads(x)['proc_data']['free_entrance'] for x in frontal_processed]
 
+        summurized_stat = list(filter(lambda x: x != 0, frontal_free))
+
+    if summurized_stat:
+        unsqueezed_summurized_stat = []
+        for elem in summurized_stat:
+            unsqueezed_summurized_stat += elem
+        print(unsqueezed_summurized_stat)
+        free_entr = Counter(unsqueezed_summurized_stat).most_common(1)[0][0]
+    else:
+        free_entr = 0
     seats = int(ceil(seats))
     people = int(ceil(people))
 
