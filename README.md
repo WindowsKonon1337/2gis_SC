@@ -8,8 +8,6 @@
 
 - **LLM Service** (порт 1337) - сервис для работы с языковыми моделями
 - **Crowd Analysis Service** (порт 1338) - сервис анализа толпы
-- **Gateway Service** (порт 1339) - шлюз для маршрутизации запросов
-- **Nginx** (порт 80) - обратный прокси для объединения сервисов
 
 ## Быстрый старт
 
@@ -22,34 +20,28 @@ cd template
 ### 2. Запуск с Docker Compose
 ```bash
 # Запуск всех сервисов
-docker-compose up -d
+docker-compose up --build -d
+```
 
+```bash
 # Просмотр логов
 docker-compose logs -f
+```
 
+```bash
 # Остановка сервисов
 docker-compose down
 ```
 
+### Для проверки проекта после запуска compose файла необходимо открыть [html-файл](./prototype.html) и дальше наслаждаться функционалом. Пример данных находится в папке [data](./data/)
+
 ### 3. Переменные окружения
 
-Создайте файл `.env` в корне проекта:
+В docker compose необходимо указать ссылку на провайдера и ключ API
 
-```env
-# LLM Service Configuration
-LLM_SERVICE_PORT=1337
-OPENAI_API_KEY=your_openai_api_key
-OPENAI_BASE_URL=https://api.proxyapi.ru/openai/v1
-
-# Crowd Analysis Service Configuration
-CROWD_ANALYSIS_SERVICE_PORT=1338
-
-# Gateway Service Configuration
-GATEWAY_SERVICE_PORT=1339
-
-# Nginx Configuration
-NGINX_PORT=80
-NGINX_SSL_PORT=443
+```docker-compose
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-<YOUR KEY HERE>}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-<OPENROUTER || PROXYAPI>}
 ```
 
 ## API Endpoints
@@ -58,28 +50,9 @@ NGINX_SSL_PORT=443
 
 - **LLM Service**: http://localhost:1337
 - **Crowd Analysis Service**: http://localhost:1338
-- **Gateway Service**: http://localhost:1339
-- **Nginx Proxy**: http://localhost (объединяет все сервисы)
-
-### Через Nginx:
-- LLM API: http://localhost/api/v1/llm/
-- Crowd Analysis API: http://localhost/api/v1/crowd/
-- Gateway API: http://localhost/api/v1/gateway/
 
 ## Разработка
 
-### Запуск отдельных сервисов
-
-```bash
-# Только LLM сервис
-docker-compose up llm-service
-
-# Только Crowd Analysis сервис
-docker-compose up crowd-analysis-service
-
-# Только Gateway сервис
-docker-compose up gateway-service
-```
 
 ### Пересборка образов
 
@@ -109,12 +82,10 @@ docker-compose exec llm-service sh
 ```
 template/
 ├── docker-compose.yaml          # Конфигурация Docker Compose
-├── nginx.conf                   # Конфигурация Nginx
 ├── data/                        # Статические файлы данных
 ├── src/services/
 │   ├── llm_service/            # LLM сервис
 │   ├── crowd_analysis_service/ # Сервис анализа толпы
-│   └── gateaway/               # Gateway сервис
 └── README.md                   # Документация
 ```
 
